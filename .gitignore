@@ -1,0 +1,25 @@
+# dependencies
+node_modules/
+
+# build output
+.next/
+out/
+dist/
+build/
+
+# secrets - NEVER push these
+.env
+.env.*
+!.env.example
+
+# uploaded files (they live inside Docker on the server)
+uploads/
+
+# old fix and backup copies - not needed on the server
+collabhub-fix/
+_backup_*/
+
+# logs and junk
+*.log
+.DS_Store
+Thumbs.db

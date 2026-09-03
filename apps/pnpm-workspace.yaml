@@ -1,0 +1,4 @@
+@'
+packages:
+  - "apps/*"
+'@ | Out-File -Encoding utf8 pnpm-workspace.yaml
