@@ -23,7 +23,7 @@ router.post("/register", async (req, res) => {
 
   const hashedPassword = await bcrypt.hash(password, 10);
 
-    const user = await prisma.user.create({
+  const user = await prisma.user.create({
     data: {
       email,
       password: hashedPassword,
@@ -43,19 +43,18 @@ router.post("/register", async (req, res) => {
     expiresIn: "7d",
   });
 
-  try {
-    console.log("Sending welcome email to:", user.email);
-    const result = await sendEmail(
-      user.email,
-      "Welcome to CollabHub",
-      `<h1>Welcome, ${user.name || user.email}!</h1>
-     <p>Your account has been created successfully.</p>
-     <p>Start collaborating by creating or joining a workspace.</p>`,
-    );
-    console.log("Email result:", result);
-  } catch (err) {
-    console.error("Failed to send welcome email:", err);
-  }
+  // Send the welcome email in the BACKGROUND — the sign-up must not
+  // wait for the (slow) test email server. The response goes out
+  // immediately; the email attempt continues on its own.
+  sendEmail(
+    user.email,
+    "Welcome to CollabHub",
+    `<h1>Welcome, ${user.name || user.email}!</h1>
+   <p>Your account has been created successfully.</p>
+   <p>Start collaborating by creating or joining a workspace.</p>`,
+  )
+    .then(() => console.log("Welcome email sent (background)"))
+    .catch((err) => console.error("Failed to send welcome email:", err));
 
   res.status(201).json({ user, token });
 });
