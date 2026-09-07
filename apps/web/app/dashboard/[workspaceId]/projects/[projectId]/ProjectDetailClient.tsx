@@ -223,6 +223,10 @@ export default function ProjectDetailClient({
         loadTaskFiles(file.taskId);
       }
     });
+    newSocket.on("task_updated", () => {
+      // someone assigned/changed/deleted a task — refresh live
+      fetchData();
+    });
     setSocket(newSocket);
     return () => newSocket.disconnect();
   };
@@ -910,38 +914,7 @@ export default function ProjectDetailClient({
                             >
                               {task.status}
                             </span>
-                            {canManageTasks ? (
-                              <span
-                                onClick={(e) => e.stopPropagation()}
-                                className="inline-flex items-center gap-1 text-sm"
-                              >
-                                <span className="text-slate-500">
-                                  Assign to:
-                                </span>
-                                <select
-                                  value={task.assigneeId || ""}
-                                  onChange={(e) =>
-                                    updateAssignee(task.id, e.target.value)
-                                  }
-                                  className="rounded-lg border border-slate-300 bg-white px-2 py-1 text-sm focus:border-indigo-500 focus:outline-none"
-                                >
-                                  <option value="">Unassigned</option>
-                                  {projMembers
-                                    .filter(
-                                      (pm: any) =>
-                                        pm.user.id !== currentUserId,
-                                    )
-                                    .map((pm: any) => (
-                                      <option
-                                        key={pm.user.id}
-                                        value={pm.user.id}
-                                      >
-                                        {pm.user.name || pm.user.email}
-                                      </option>
-                                    ))}
-                                </select>
-                              </span>
-                            ) : task.assignee ? (
+                            {task.assignee ? (
                               <span className="text-slate-600">
                                 Assigned to{" "}
                                 <strong>
@@ -1046,27 +1019,7 @@ export default function ProjectDetailClient({
                   </>
                 )}
 
-                {canManageTasks ? (
-                  <span className="inline-flex items-center gap-1 text-sm">
-                    <span className="text-slate-500">Assign to:</span>
-                    <select
-                      value={selectedTask.assigneeId || ""}
-                      onChange={(e) =>
-                        updateAssignee(selectedTask.id, e.target.value)
-                      }
-                      className="rounded-lg border border-slate-300 bg-white px-2 py-1.5 text-sm focus:border-indigo-500 focus:outline-none"
-                    >
-                      <option value="">Unassigned</option>
-                      {projMembers
-                        .filter((pm: any) => pm.user.id !== currentUserId)
-                        .map((pm: any) => (
-                          <option key={pm.user.id} value={pm.user.id}>
-                            {pm.user.name || pm.user.email}
-                          </option>
-                        ))}
-                    </select>
-                  </span>
-                ) : selectedTask.assignee ? (
+                {selectedTask.assignee ? (
                   <span className="text-slate-600">
                     Assigned to{" "}
                     <strong>
@@ -1077,6 +1030,28 @@ export default function ProjectDetailClient({
                   <span className="text-slate-400">Unassigned</span>
                 )}
               </div>
+
+              {canManageTasks && (
+                <div className="mt-3 flex flex-wrap items-center gap-2 text-sm">
+                  <span className="text-slate-500">Change assignee:</span>
+                  <select
+                    value={selectedTask.assigneeId || ""}
+                    onChange={(e) =>
+                      updateAssignee(selectedTask.id, e.target.value)
+                    }
+                    className="rounded-lg border border-slate-300 bg-white px-2 py-1.5 text-sm focus:border-indigo-500 focus:outline-none"
+                  >
+                    <option value="">Unassigned</option>
+                    {projMembers
+                      .filter((pm: any) => pm.user.id !== currentUserId)
+                      .map((pm: any) => (
+                        <option key={pm.user.id} value={pm.user.id}>
+                          {pm.user.name || pm.user.email}
+                        </option>
+                      ))}
+                  </select>
+                </div>
+              )}
 
               <div className="mt-6 flex gap-2 border-b border-slate-200 pb-1">
                 {(

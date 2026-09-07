@@ -1,6 +1,7 @@
 import { Router } from "express";
 import { prisma } from "../lib/prisma";
 import { authenticateToken } from "../middleware/auth";
+import { emitToWorkspace } from "../lib/io";
 
 const router = Router();
 
@@ -117,6 +118,11 @@ router.post("/:projectId/tasks", async (req, res) => {
     },
   });
 
+  // live refresh for everyone in this workspace
+  emitToWorkspace(ctx.project.workspaceId, "task_updated", {
+    taskId: task.id,
+  });
+
   res.status(201).json({ task });
 });
 
@@ -168,6 +174,11 @@ router.patch("/:taskId/status", async (req, res) => {
     },
   });
 
+  // live refresh for everyone in this workspace
+  emitToWorkspace(task.project.workspaceId, "task_updated", {
+    taskId: updatedTask.id,
+  });
+
   res.json({ task: updatedTask });
 });
 
@@ -182,6 +193,7 @@ router.patch("/:taskId/assignee", async (req, res) => {
 
   const task = await (prisma as any).task.findUnique({
     where: { id: taskId },
+    include: { project: { select: { workspaceId: true } } },
   });
   if (!task) {
     return res.status(404).json({ error: "Task not found" });
@@ -218,6 +230,11 @@ router.patch("/:taskId/assignee", async (req, res) => {
     },
   });
 
+  // live refresh for everyone in this workspace
+  emitToWorkspace(task.project.workspaceId, "task_updated", {
+    taskId: updatedTask.id,
+  });
+
   res.json({ task: updatedTask });
 });
 
@@ -228,6 +245,7 @@ router.delete("/:taskId", async (req, res) => {
 
   const task = await (prisma as any).task.findUnique({
     where: { id: taskId },
+    include: { project: { select: { workspaceId: true } } },
   });
   if (!task) {
     return res.status(404).json({ error: "Task not found" });
@@ -246,6 +264,9 @@ router.delete("/:taskId", async (req, res) => {
   await (prisma as any).chatMessage.deleteMany({ where: { taskId } });
   await (prisma as any).attachment.deleteMany({ where: { taskId } });
   await (prisma as any).task.delete({ where: { id: taskId } });
+
+  // live refresh for everyone in this workspace
+  emitToWorkspace(task.project.workspaceId, "task_updated", { taskId });
 
   res.json({ message: "Task deleted" });
 });

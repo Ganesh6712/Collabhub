@@ -186,6 +186,10 @@ export default function WorkspaceDetailPage() {
       // someone in this workspace uploaded a file — refresh the list live
       fetchFiles();
     });
+    newSocket.on("task_updated", () => {
+      // someone assigned/changed a task — refresh counts and lists live
+      fetchOverview();
+    });
     setSocket(newSocket);
     return () => newSocket.disconnect();
   };
