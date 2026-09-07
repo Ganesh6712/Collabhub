@@ -1,7 +1,7 @@
 "use client";
 
 import { useSession } from "next-auth/react";
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useRef, useState, type ReactNode } from "react";
 import { useParams, useRouter } from "next/navigation";
 import Link from "next/link";
 import { io } from "socket.io-client";
@@ -25,6 +25,221 @@ const STATUS_COLORS: Record<string, string> = {
   "in-progress": "bg-blue-100 text-blue-700",
   done: "bg-green-100 text-green-700",
 };
+
+const STATUS_LABELS: Record<string, string> = {
+  todo: "To Do",
+  "in-progress": "In Progress",
+  done: "Done",
+};
+
+const AVATAR_COLORS = [
+  "bg-indigo-500",
+  "bg-sky-500",
+  "bg-violet-500",
+  "bg-emerald-500",
+  "bg-rose-500",
+  "bg-amber-500",
+];
+
+function avatarColor(name?: string | null) {
+  if (!name) return "bg-slate-300";
+  let h = 0;
+  for (let i = 0; i < name.length; i++) {
+    h = (h * 31 + name.charCodeAt(i)) % 997;
+  }
+  return AVATAR_COLORS[h % AVATAR_COLORS.length];
+}
+
+function initialsOf(name?: string | null) {
+  if (!name) return "?";
+  const parts = name.trim().split(/\s+/);
+  return ((parts[0]?.[0] || "") + (parts[1]?.[0] || "")).toUpperCase();
+}
+
+function IconFolder() {
+  return (
+    <svg
+      className="h-6 w-6"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth="2"
+      strokeLinecap="round"
+      strokeLinejoin="round"
+      viewBox="0 0 24 24"
+    >
+      <path d="M20 20a2 2 0 0 0 2-2V8a2 2 0 0 0-2-2h-7.9a2 2 0 0 1-1.69-.9L9.6 3.9A2 2 0 0 0 7.93 3H4a2 2 0 0 0-2 2v13a2 2 0 0 0 2 2Z" />
+    </svg>
+  );
+}
+
+function IconTasks() {
+  return (
+    <svg
+      className="h-6 w-6"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth="2"
+      strokeLinecap="round"
+      strokeLinejoin="round"
+      viewBox="0 0 24 24"
+    >
+      <rect width="8" height="4" x="8" y="2" rx="1" ry="1" />
+      <path d="M16 4h2a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2h2" />
+      <path d="m9 14 2 2 4-4" />
+    </svg>
+  );
+}
+
+function IconZap() {
+  return (
+    <svg
+      className="h-6 w-6"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth="2"
+      strokeLinecap="round"
+      strokeLinejoin="round"
+      viewBox="0 0 24 24"
+    >
+      <path d="M4 14a1 1 0 0 1-.78-1.63l9.9-10.2a.5.5 0 0 1 .86.46l-1.92 6.02A1 1 0 0 0 13 10h7a1 1 0 0 1 .78 1.63l-9.9 10.2a.5.5 0 0 1-.86-.46l1.92-6.02A1 1 0 0 0 11 14z" />
+    </svg>
+  );
+}
+
+function IconUsers() {
+  return (
+    <svg
+      className="h-6 w-6"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth="2"
+      strokeLinecap="round"
+      strokeLinejoin="round"
+      viewBox="0 0 24 24"
+    >
+      <path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2" />
+      <circle cx="9" cy="7" r="4" />
+      <path d="M23 21v-2a4 4 0 0 0-3-3.87" />
+      <path d="M16 3.13a4 4 0 0 1 0 7.75" />
+    </svg>
+  );
+}
+
+function IconCrown() {
+  return (
+    <svg
+      className="h-6 w-6"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth="2"
+      strokeLinecap="round"
+      strokeLinejoin="round"
+      viewBox="0 0 24 24"
+    >
+      <path d="M11.562 3.266a.5.5 0 0 1 .876 0L15.39 8.87a1 1 0 0 0 1.516.294L21.183 5.5a.5.5 0 0 1 .798.519l-2.834 10.246a1 1 0 0 1-.956.735H5.81a1 1 0 0 1-.957-.735L2.02 6.02a.5.5 0 0 1 .798-.52l4.276 3.664a1 1 0 0 0 1.516-.294z" />
+      <line x1="5" x2="19" y1="21" y2="21" />
+    </svg>
+  );
+}
+
+function IconFlag() {
+  return (
+    <svg
+      className="h-6 w-6"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth="2"
+      strokeLinecap="round"
+      strokeLinejoin="round"
+      viewBox="0 0 24 24"
+    >
+      <path d="M4 15s1-1 4-1 5 2 8 2 4-1 4-1V3s-1 1-4 1-5-2-8-2-4 1-4 1z" />
+      <line x1="4" x2="4" y1="22" y2="15" />
+    </svg>
+  );
+}
+
+function IconUserCheck() {
+  return (
+    <svg
+      className="h-6 w-6"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth="2"
+      strokeLinecap="round"
+      strokeLinejoin="round"
+      viewBox="0 0 24 24"
+    >
+      <path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2" />
+      <circle cx="9" cy="7" r="4" />
+      <polyline points="16 11 18 13 22 9" />
+    </svg>
+  );
+}
+
+function IconCheckCircle() {
+  return (
+    <svg
+      className="h-6 w-6"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth="2"
+      strokeLinecap="round"
+      strokeLinejoin="round"
+      viewBox="0 0 24 24"
+    >
+      <path d="M22 11.08V12a10 10 0 1 1-5.93-9.14" />
+      <polyline points="22 4 12 14.01 9 11.01" />
+    </svg>
+  );
+}
+
+function IconList() {
+  return (
+    <svg
+      className="h-6 w-6"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth="2"
+      strokeLinecap="round"
+      strokeLinejoin="round"
+      viewBox="0 0 24 24"
+    >
+      <line x1="8" x2="21" y1="6" y2="6" />
+      <line x1="8" x2="21" y1="12" y2="12" />
+      <line x1="8" x2="21" y1="18" y2="18" />
+      <line x1="3" x2="3.01" y1="6" y2="6" />
+      <line x1="3" x2="3.01" y1="12" y2="12" />
+      <line x1="3" x2="3.01" y1="18" y2="18" />
+    </svg>
+  );
+}
+
+function StatCard({
+  icon,
+  label,
+  value,
+  tone,
+}: {
+  icon: ReactNode;
+  label: string;
+  value: ReactNode;
+  tone: string;
+}) {
+  return (
+    <div className="card flex items-center gap-4 transition hover:-translate-y-0.5 hover:shadow-md">
+      <span
+        className={`flex h-12 w-12 shrink-0 items-center justify-center rounded-xl ${tone}`}
+      >
+        {icon}
+      </span>
+      <div className="min-w-0">
+        <p className="text-sm font-medium text-slate-500">{label}</p>
+        <p className="text-3xl font-bold text-slate-900">{value}</p>
+      </div>
+    </div>
+  );
+}
 
 export default function WorkspaceDetailPage() {
   const { data: session, status } = useSession();
@@ -236,7 +451,7 @@ export default function WorkspaceDetailPage() {
     }
   };
 
-    const handleDeleteProject = async (projectId: string, name: string) => {
+  const handleDeleteProject = async (projectId: string, name: string) => {
     if (
       !confirm(
         `Delete "${name}"? This removes its tasks, chats, files and members — this cannot be undone.`
@@ -478,7 +693,10 @@ export default function WorkspaceDetailPage() {
               ← Dashboard
             </Link>
             <div className="h-6 w-px bg-slate-200"></div>
-            <div>
+            <div className="flex items-center gap-2.5">
+              <span className="flex h-8 w-8 items-center justify-center rounded-lg bg-indigo-600 text-sm font-extrabold text-white">
+                C
+              </span>
               <h1 className="text-xl font-bold text-slate-900">
                 {workspace.name}
               </h1>
@@ -498,15 +716,15 @@ export default function WorkspaceDetailPage() {
       </header>
 
       <main className="mx-auto max-w-7xl px-6 py-8">
-        <div className="flex gap-2 overflow-x-auto border-b border-slate-200 pb-1">
+        <div className="mt-2 flex gap-1.5 overflow-x-auto rounded-2xl bg-white p-1.5 shadow-sm ring-1 ring-slate-900/5">
           {tabs.map((tab) => (
             <button
               key={tab.id}
               onClick={() => setActiveTab(tab.id)}
-              className={`whitespace-nowrap rounded-t-lg px-4 py-2.5 text-sm font-medium transition-colors ${
+              className={`whitespace-nowrap rounded-xl px-4 py-2 text-sm font-medium transition-colors ${
                 activeTab === tab.id
-                  ? "border-b-2 border-indigo-600 text-indigo-600"
-                  : "text-slate-500 hover:text-slate-700"
+                  ? "bg-indigo-600 text-white shadow-sm"
+                  : "text-slate-500 hover:bg-slate-100 hover:text-slate-700"
               }`}
             >
               {tab.label}
@@ -571,8 +789,16 @@ export default function WorkspaceDetailPage() {
         {/* ============ OVERVIEW: ADMIN ============ */}
         {activeTab === "overview" && isAdmin && (
           <div className="mt-6 space-y-6">
-            <div className="card bg-gradient-to-br from-purple-600 to-indigo-600 text-white">
-              <div className="flex flex-wrap items-center justify-between gap-4">
+            <div className="card relative overflow-hidden bg-gradient-to-br from-purple-600 to-indigo-600 text-white">
+              <div
+                aria-hidden
+                className="pointer-events-none absolute -left-16 -top-16 h-48 w-48 rounded-full bg-white/10"
+              />
+              <div
+                aria-hidden
+                className="pointer-events-none absolute -bottom-16 -right-10 h-40 w-40 rounded-full bg-white/10"
+              />
+              <div className="relative flex flex-wrap items-center justify-between gap-4">
                 <div>
                   <h2 className="text-2xl font-bold">
                     Welcome back, {session?.user?.name || session?.user?.email}
@@ -588,51 +814,51 @@ export default function WorkspaceDetailPage() {
             </div>
 
             <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
-              <div className="card">
-                <p className="muted-text">Projects</p>
-                <p className="mt-1 text-3xl font-bold text-slate-900">
-                  {projects.length}
-                </p>
-              </div>
-              <div className="card">
-                <p className="muted-text">Total Tasks</p>
-                <p className="mt-1 text-3xl font-bold text-slate-900">
-                  {allTasks.length}
-                </p>
-              </div>
-              <div className="card">
-                <p className="muted-text">In Progress</p>
-                <p className="mt-1 text-3xl font-bold text-blue-600">
-                  {statusCounts["in-progress"] || 0}
-                </p>
-              </div>
-              <div className="card">
-                <p className="muted-text">Members</p>
-                <p className="mt-1 text-3xl font-bold text-slate-900">
-                  {members.length}
-                </p>
-              </div>
+              <StatCard
+                icon={<IconFolder />}
+                label="Projects"
+                value={projects.length}
+                tone="bg-indigo-50 text-indigo-600"
+              />
+              <StatCard
+                icon={<IconTasks />}
+                label="Total Tasks"
+                value={allTasks.length}
+                tone="bg-violet-50 text-violet-600"
+              />
+              <StatCard
+                icon={<IconZap />}
+                label="In Progress"
+                value={statusCounts["in-progress"] || 0}
+                tone="bg-blue-50 text-blue-600"
+              />
+              <StatCard
+                icon={<IconUsers />}
+                label="Members"
+                value={members.length}
+                tone="bg-sky-50 text-sky-600"
+              />
             </div>
 
             <div className="grid gap-4 sm:grid-cols-3">
-              <div className="card">
-                <p className="muted-text">Admins</p>
-                <p className="mt-1 text-3xl font-bold text-purple-600">
-                  {members.filter((m) => m.role === "ADMIN").length}
-                </p>
-              </div>
-              <div className="card">
-                <p className="muted-text">Team Leads</p>
-                <p className="mt-1 text-3xl font-bold text-blue-600">
-                  {members.filter((m) => m.role === "TEAM_LEAD").length}
-                </p>
-              </div>
-              <div className="card">
-                <p className="muted-text">Employees</p>
-                <p className="mt-1 text-3xl font-bold text-emerald-600">
-                  {members.filter((m) => m.role === "EMPLOYEE").length}
-                </p>
-              </div>
+              <StatCard
+                icon={<IconCrown />}
+                label="Admins"
+                value={members.filter((m) => m.role === "ADMIN").length}
+                tone="bg-purple-50 text-purple-600"
+              />
+              <StatCard
+                icon={<IconFlag />}
+                label="Team Leads"
+                value={members.filter((m) => m.role === "TEAM_LEAD").length}
+                tone="bg-blue-50 text-blue-600"
+              />
+              <StatCard
+                icon={<IconUserCheck />}
+                label="Employees"
+                value={members.filter((m) => m.role === "EMPLOYEE").length}
+                tone="bg-emerald-50 text-emerald-600"
+              />
             </div>
 
             <div className="grid gap-6 lg:grid-cols-2">
@@ -643,28 +869,48 @@ export default function WorkspaceDetailPage() {
                     <Link
                       key={t.id}
                       href={`/dashboard/${workspaceId}/projects/${t.project.id}?task=${t.id}`}
-                      className="flex items-center justify-between rounded-xl border border-slate-200 p-3 hover:border-indigo-300 hover:bg-indigo-50/40"
+                      className="flex items-center justify-between gap-3 rounded-xl border border-slate-200 p-3 transition hover:border-indigo-300 hover:bg-indigo-50/40"
                     >
-                      <div>
-                        <p className="text-sm font-medium text-slate-900">
-                          {t.title}
-                        </p>
-                        <p className="text-xs text-slate-500">
-                          {t.project.name} •{" "}
-                          {t.assignee?.name || t.assignee?.email || "Unassigned"}
-                        </p>
+                      <div className="flex min-w-0 items-center gap-3">
+                        <span
+                          className={`flex h-9 w-9 shrink-0 items-center justify-center rounded-full text-xs font-bold text-white ${avatarColor(
+                            t.assignee?.name || t.assignee?.email,
+                          )}`}
+                        >
+                          {t.assignee
+                            ? initialsOf(t.assignee.name || t.assignee.email)
+                            : "?"}
+                        </span>
+                        <div className="min-w-0">
+                          <p className="truncate text-sm font-medium text-slate-900">
+                            {t.title}
+                          </p>
+                          <p className="truncate text-xs text-slate-500">
+                            {t.project.name} •{" "}
+                            {t.assignee?.name ||
+                              t.assignee?.email ||
+                              "Unassigned"}
+                          </p>
+                        </div>
                       </div>
                       <span
-                        className={`rounded-full px-2.5 py-0.5 text-xs font-semibold ${
+                        className={`shrink-0 rounded-full px-2.5 py-0.5 text-xs font-semibold ${
                           STATUS_COLORS[t.status] || "bg-slate-100 text-slate-600"
                         }`}
                       >
-                        {t.status}
+                        {STATUS_LABELS[t.status] || t.status}
                       </span>
                     </Link>
                   ))}
                   {allTasks.length === 0 && (
-                    <p className="text-sm text-slate-400">No tasks yet.</p>
+                    <div className="rounded-xl border border-dashed border-slate-300 px-4 py-8 text-center">
+                      <p className="text-sm font-medium text-slate-500">
+                        No tasks yet
+                      </p>
+                      <p className="mt-1 text-xs text-slate-400">
+                        Create your first task inside a project.
+                      </p>
+                    </div>
                   )}
                 </div>
               </div>
@@ -675,13 +921,24 @@ export default function WorkspaceDetailPage() {
                   {members.slice(0, 6).map((m) => (
                     <div
                       key={m.id}
-                      className="flex items-center justify-between rounded-xl border border-slate-200 p-3"
+                      className="flex items-center justify-between gap-3 rounded-xl border border-slate-200 p-3"
                     >
-                      <div>
-                        <p className="text-sm font-medium text-slate-900">
-                          {m.user?.name || m.user?.email}
-                        </p>
-                        <p className="text-xs text-slate-500">{m.user?.email}</p>
+                      <div className="flex min-w-0 items-center gap-3">
+                        <span
+                          className={`flex h-9 w-9 shrink-0 items-center justify-center rounded-full text-xs font-bold text-white ${avatarColor(
+                            m.user?.name || m.user?.email,
+                          )}`}
+                        >
+                          {initialsOf(m.user?.name || m.user?.email)}
+                        </span>
+                        <div className="min-w-0">
+                          <p className="truncate text-sm font-medium text-slate-900">
+                            {m.user?.name || m.user?.email}
+                          </p>
+                          <p className="truncate text-xs text-slate-500">
+                            {m.user?.email}
+                          </p>
+                        </div>
                       </div>
                       <span
                         className={`rounded-full px-2.5 py-0.5 text-xs font-semibold ${
@@ -693,7 +950,14 @@ export default function WorkspaceDetailPage() {
                     </div>
                   ))}
                   {members.length === 0 && (
-                    <p className="text-sm text-slate-400">No members yet.</p>
+                    <div className="rounded-xl border border-dashed border-slate-300 px-4 py-8 text-center">
+                      <p className="text-sm font-medium text-slate-500">
+                        No members yet
+                      </p>
+                      <p className="mt-1 text-xs text-slate-400">
+                        Invite people from the Members tab.
+                      </p>
+                    </div>
                   )}
                 </div>
                 <p className="mt-3 text-xs text-slate-400">
@@ -707,8 +971,16 @@ export default function WorkspaceDetailPage() {
         {/* ============ OVERVIEW: TEAM LEAD ============ */}
         {activeTab === "overview" && isTeamLead && (
           <div className="mt-6 space-y-6">
-            <div className="card bg-gradient-to-br from-blue-600 to-indigo-600 text-white">
-              <div className="flex flex-wrap items-center justify-between gap-4">
+            <div className="card relative overflow-hidden bg-gradient-to-br from-blue-600 to-indigo-600 text-white">
+              <div
+                aria-hidden
+                className="pointer-events-none absolute -left-16 -top-16 h-48 w-48 rounded-full bg-white/10"
+              />
+              <div
+                aria-hidden
+                className="pointer-events-none absolute -bottom-16 -right-10 h-40 w-40 rounded-full bg-white/10"
+              />
+              <div className="relative flex flex-wrap items-center justify-between gap-4">
                 <div>
                   <h2 className="text-2xl font-bold">
                     Welcome back, {session?.user?.name || session?.user?.email}
@@ -724,30 +996,30 @@ export default function WorkspaceDetailPage() {
             </div>
 
             <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
-              <div className="card">
-                <p className="muted-text">Projects</p>
-                <p className="mt-1 text-3xl font-bold text-slate-900">
-                  {projects.length}
-                </p>
-              </div>
-              <div className="card">
-                <p className="muted-text">To Do</p>
-                <p className="mt-1 text-3xl font-bold text-slate-700">
-                  {statusCounts.todo || 0}
-                </p>
-              </div>
-              <div className="card">
-                <p className="muted-text">In Progress</p>
-                <p className="mt-1 text-3xl font-bold text-blue-600">
-                  {statusCounts["in-progress"] || 0}
-                </p>
-              </div>
-              <div className="card">
-                <p className="muted-text">Done</p>
-                <p className="mt-1 text-3xl font-bold text-green-600">
-                  {statusCounts.done || 0}
-                </p>
-              </div>
+              <StatCard
+                icon={<IconFolder />}
+                label="Projects"
+                value={projects.length}
+                tone="bg-indigo-50 text-indigo-600"
+              />
+              <StatCard
+                icon={<IconList />}
+                label="To Do"
+                value={statusCounts.todo || 0}
+                tone="bg-slate-100 text-slate-600"
+              />
+              <StatCard
+                icon={<IconZap />}
+                label="In Progress"
+                value={statusCounts["in-progress"] || 0}
+                tone="bg-blue-50 text-blue-600"
+              />
+              <StatCard
+                icon={<IconCheckCircle />}
+                label="Done"
+                value={statusCounts.done || 0}
+                tone="bg-emerald-50 text-emerald-600"
+              />
             </div>
 
             <div className="grid gap-6 lg:grid-cols-2">
@@ -758,28 +1030,48 @@ export default function WorkspaceDetailPage() {
                     <Link
                       key={t.id}
                       href={`/dashboard/${workspaceId}/projects/${t.project.id}?task=${t.id}`}
-                      className="flex items-center justify-between rounded-xl border border-slate-200 p-3 hover:border-indigo-300 hover:bg-indigo-50/40"
+                      className="flex items-center justify-between gap-3 rounded-xl border border-slate-200 p-3 transition hover:border-indigo-300 hover:bg-indigo-50/40"
                     >
-                      <div>
-                        <p className="text-sm font-medium text-slate-900">
-                          {t.title}
-                        </p>
-                        <p className="text-xs text-slate-500">
-                          {t.project.name} •{" "}
-                          {t.assignee?.name || t.assignee?.email || "Unassigned"}
-                        </p>
+                      <div className="flex min-w-0 items-center gap-3">
+                        <span
+                          className={`flex h-9 w-9 shrink-0 items-center justify-center rounded-full text-xs font-bold text-white ${avatarColor(
+                            t.assignee?.name || t.assignee?.email,
+                          )}`}
+                        >
+                          {t.assignee
+                            ? initialsOf(t.assignee.name || t.assignee.email)
+                            : "?"}
+                        </span>
+                        <div className="min-w-0">
+                          <p className="truncate text-sm font-medium text-slate-900">
+                            {t.title}
+                          </p>
+                          <p className="truncate text-xs text-slate-500">
+                            {t.project.name} •{" "}
+                            {t.assignee?.name ||
+                              t.assignee?.email ||
+                              "Unassigned"}
+                          </p>
+                        </div>
                       </div>
                       <span
-                        className={`rounded-full px-2.5 py-0.5 text-xs font-semibold ${
+                        className={`shrink-0 rounded-full px-2.5 py-0.5 text-xs font-semibold ${
                           STATUS_COLORS[t.status] || "bg-slate-100 text-slate-600"
                         }`}
                       >
-                        {t.status}
+                        {STATUS_LABELS[t.status] || t.status}
                       </span>
                     </Link>
                   ))}
                   {allTasks.length === 0 && (
-                    <p className="text-sm text-slate-400">No tasks yet.</p>
+                    <div className="rounded-xl border border-dashed border-slate-300 px-4 py-8 text-center">
+                      <p className="text-sm font-medium text-slate-500">
+                        No tasks yet
+                      </p>
+                      <p className="mt-1 text-xs text-slate-400">
+                        Create your first task inside a project.
+                      </p>
+                    </div>
                   )}
                 </div>
               </div>
@@ -788,9 +1080,15 @@ export default function WorkspaceDetailPage() {
                 <h3 className="section-title mb-4">Your team</h3>
                 <div className="space-y-3">
                   {teamMembers.length === 0 && (
-                    <p className="text-sm text-slate-400">
-                      No members invited yet.
-                    </p>
+                    <div className="rounded-xl border border-dashed border-slate-300 px-4 py-8 text-center">
+                      <p className="text-sm font-medium text-slate-500">
+                        No members invited yet
+                      </p>
+                      <p className="mt-1 text-xs text-slate-400">
+                        Invite teammates to your projects and they will appear
+                        here.
+                      </p>
+                    </div>
                   )}
                   {teamMembers.map((m: any) => {
                     const ws = members.find((w) => w.user.id === m.user.id);
@@ -798,15 +1096,24 @@ export default function WorkspaceDetailPage() {
                     return (
                       <div
                         key={m.user.id}
-                        className="flex items-center justify-between rounded-xl border border-slate-200 p-3"
+                        className="flex items-center justify-between gap-3 rounded-xl border border-slate-200 p-3"
                       >
-                        <div>
-                          <p className="text-sm font-medium text-slate-900">
-                            {m.user.name || m.user.email}
-                          </p>
-                          <p className="text-xs text-slate-500">
-                            {m.user.email}
-                          </p>
+                        <div className="flex min-w-0 items-center gap-3">
+                          <span
+                            className={`flex h-9 w-9 shrink-0 items-center justify-center rounded-full text-xs font-bold text-white ${avatarColor(
+                              m.user.name || m.user.email,
+                            )}`}
+                          >
+                            {initialsOf(m.user.name || m.user.email)}
+                          </span>
+                          <div className="min-w-0">
+                            <p className="truncate text-sm font-medium text-slate-900">
+                              {m.user.name || m.user.email}
+                            </p>
+                            <p className="truncate text-xs text-slate-500">
+                              {m.user.email}
+                            </p>
+                          </div>
                         </div>
                         <span
                           className={`rounded-full px-2.5 py-0.5 text-xs font-semibold ${
@@ -827,8 +1134,16 @@ export default function WorkspaceDetailPage() {
         {/* ============ OVERVIEW: EMPLOYEE ============ */}
         {activeTab === "overview" && isEmployee && (
           <div className="mt-6 space-y-6">
-            <div className="card bg-gradient-to-br from-emerald-600 to-teal-600 text-white">
-              <div className="flex flex-wrap items-center justify-between gap-4">
+            <div className="card relative overflow-hidden bg-gradient-to-br from-emerald-600 to-teal-600 text-white">
+              <div
+                aria-hidden
+                className="pointer-events-none absolute -left-16 -top-16 h-48 w-48 rounded-full bg-white/10"
+              />
+              <div
+                aria-hidden
+                className="pointer-events-none absolute -bottom-16 -right-10 h-40 w-40 rounded-full bg-white/10"
+              />
+              <div className="relative flex flex-wrap items-center justify-between gap-4">
                 <div>
                   <h2 className="text-2xl font-bold">
                     Welcome back, {session?.user?.name || session?.user?.email}
@@ -844,30 +1159,30 @@ export default function WorkspaceDetailPage() {
             </div>
 
             <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
-              <div className="card">
-                <p className="muted-text">My Tasks</p>
-                <p className="mt-1 text-3xl font-bold text-slate-900">
-                  {myTasks.length}
-                </p>
-              </div>
-              <div className="card">
-                <p className="muted-text">To Do</p>
-                <p className="mt-1 text-3xl font-bold text-slate-700">
-                  {myStatusCounts.todo || 0}
-                </p>
-              </div>
-              <div className="card">
-                <p className="muted-text">In Progress</p>
-                <p className="mt-1 text-3xl font-bold text-blue-600">
-                  {myStatusCounts["in-progress"] || 0}
-                </p>
-              </div>
-              <div className="card">
-                <p className="muted-text">Done</p>
-                <p className="mt-1 text-3xl font-bold text-green-600">
-                  {myStatusCounts.done || 0}
-                </p>
-              </div>
+              <StatCard
+                icon={<IconTasks />}
+                label="My Tasks"
+                value={myTasks.length}
+                tone="bg-indigo-50 text-indigo-600"
+              />
+              <StatCard
+                icon={<IconList />}
+                label="To Do"
+                value={myStatusCounts.todo || 0}
+                tone="bg-slate-100 text-slate-600"
+              />
+              <StatCard
+                icon={<IconZap />}
+                label="In Progress"
+                value={myStatusCounts["in-progress"] || 0}
+                tone="bg-blue-50 text-blue-600"
+              />
+              <StatCard
+                icon={<IconCheckCircle />}
+                label="Done"
+                value={myStatusCounts.done || 0}
+                tone="bg-emerald-50 text-emerald-600"
+              />
             </div>
 
             <div className="grid gap-6 lg:grid-cols-2">
@@ -878,27 +1193,44 @@ export default function WorkspaceDetailPage() {
                     <Link
                       key={t.id}
                       href={`/dashboard/${workspaceId}/projects/${t.project.id}?task=${t.id}`}
-                      className="flex items-center justify-between rounded-xl border border-slate-200 p-3 hover:border-indigo-300 hover:bg-indigo-50/40"
+                      className="flex items-center justify-between gap-3 rounded-xl border border-slate-200 p-3 transition hover:border-indigo-300 hover:bg-indigo-50/40"
                     >
-                      <div>
-                        <p className="text-sm font-medium text-slate-900">
-                          {t.title}
-                        </p>
-                        <p className="text-xs text-slate-500">{t.project.name}</p>
+                      <div className="flex min-w-0 items-center gap-3">
+                        <span
+                          className={`flex h-9 w-9 shrink-0 items-center justify-center rounded-full text-xs font-bold text-white ${avatarColor(
+                            t.project.name,
+                          )}`}
+                        >
+                          {initialsOf(t.project.name)}
+                        </span>
+                        <div className="min-w-0">
+                          <p className="truncate text-sm font-medium text-slate-900">
+                            {t.title}
+                          </p>
+                          <p className="truncate text-xs text-slate-500">
+                            {t.project.name}
+                          </p>
+                        </div>
                       </div>
                       <span
-                        className={`rounded-full px-2.5 py-0.5 text-xs font-semibold ${
+                        className={`shrink-0 rounded-full px-2.5 py-0.5 text-xs font-semibold ${
                           STATUS_COLORS[t.status] || "bg-slate-100 text-slate-600"
                         }`}
                       >
-                        {t.status}
+                        {STATUS_LABELS[t.status] || t.status}
                       </span>
                     </Link>
                   ))}
                   {myTasks.length === 0 && (
-                    <p className="text-sm text-slate-400">
-                      No tasks assigned yet.
-                    </p>
+                    <div className="rounded-xl border border-dashed border-slate-300 px-4 py-8 text-center">
+                      <p className="text-sm font-medium text-slate-500">
+                        No tasks assigned yet
+                      </p>
+                      <p className="mt-1 text-xs text-slate-400">
+                        Your tasks will appear here as soon as work is assigned
+                        to you.
+                      </p>
+                    </div>
                   )}
                 </div>
               </div>
@@ -982,6 +1314,9 @@ export default function WorkspaceDetailPage() {
                   <p className="text-lg font-medium text-slate-600">
                     No Projects Created Yet
                   </p>
+                  <p className="mt-2 text-sm text-slate-400">
+                    Create a project to start assigning tasks to your team.
+                  </p>
                 </div>
               ) : (
                 <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
@@ -1041,7 +1376,16 @@ export default function WorkspaceDetailPage() {
                 {isEmployee ? "My Tasks" : "Assigned Tasks"}
               </h2>
               {(isEmployee ? myTasks : allTasks).length === 0 ? (
-                <p className="text-slate-500">No tasks found.</p>
+                <div className="rounded-xl border border-dashed border-slate-300 px-4 py-10 text-center">
+                  <p className="text-sm font-medium text-slate-500">
+                    No tasks yet
+                  </p>
+                  <p className="mt-1 text-xs text-slate-400">
+                    {isEmployee
+                      ? "Your tasks will appear here as soon as work is assigned to you."
+                      : "Create a task inside one of your projects."}
+                  </p>
+                </div>
               ) : (
                 <div className="space-y-3">
                   {(isEmployee ? myTasks : allTasks).map((task) => (
@@ -1050,24 +1394,37 @@ export default function WorkspaceDetailPage() {
                       href={`/dashboard/${workspaceId}/projects/${task.project.id}?task=${task.id}`}
                       className="flex flex-col gap-2 rounded-xl border border-slate-200 p-4 transition hover:border-indigo-300 hover:bg-indigo-50/40 sm:flex-row sm:items-center sm:justify-between"
                     >
-                      <div>
-                        <p className="font-semibold text-slate-900">
-                          {task.title}
-                        </p>
-                        <p className="text-sm text-slate-500">
-                          Project: {task.project.name} •{" "}
-                          {task.assignee?.name ||
-                            task.assignee?.email ||
-                            "Unassigned"}
-                        </p>
+                      <div className="flex min-w-0 items-center gap-3">
+                        <span
+                          className={`flex h-9 w-9 shrink-0 items-center justify-center rounded-full text-xs font-bold text-white ${avatarColor(
+                            task.assignee?.name || task.assignee?.email,
+                          )}`}
+                        >
+                          {task.assignee
+                            ? initialsOf(
+                                task.assignee.name || task.assignee.email,
+                              )
+                            : "?"}
+                        </span>
+                        <div className="min-w-0">
+                          <p className="truncate font-semibold text-slate-900">
+                            {task.title}
+                          </p>
+                          <p className="truncate text-sm text-slate-500">
+                            Project: {task.project.name} •{" "}
+                            {task.assignee?.name ||
+                              task.assignee?.email ||
+                              "Unassigned"}
+                          </p>
+                        </div>
                       </div>
                       <span
-                        className={`rounded-full px-2.5 py-0.5 text-xs font-semibold ${
+                        className={`shrink-0 self-start rounded-full px-2.5 py-0.5 text-xs font-semibold sm:self-auto ${
                           STATUS_COLORS[task.status] ||
                           "bg-slate-100 text-slate-600"
                         }`}
                       >
-                        {task.status}
+                        {STATUS_LABELS[task.status] || task.status}
                       </span>
                     </Link>
                   ))}

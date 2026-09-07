@@ -18,6 +18,42 @@ const STATUS_COLORS: any = {
   done: "bg-green-100 text-green-700",
 };
 
+const STATUS_LABELS: any = {
+  todo: "To Do",
+  "in-progress": "In Progress",
+  done: "Done",
+};
+
+const PRIORITY_LABELS: any = {
+  low: "Low",
+  medium: "Medium",
+  high: "High",
+};
+
+const AVATAR_COLORS = [
+  "bg-indigo-500",
+  "bg-sky-500",
+  "bg-violet-500",
+  "bg-emerald-500",
+  "bg-rose-500",
+  "bg-amber-500",
+];
+
+function avatarColor(name?: string | null) {
+  if (!name) return "bg-slate-300";
+  let h = 0;
+  for (let i = 0; i < name.length; i++) {
+    h = (h * 31 + name.charCodeAt(i)) % 997;
+  }
+  return AVATAR_COLORS[h % AVATAR_COLORS.length];
+}
+
+function initialsOf(name?: string | null) {
+  if (!name) return "?";
+  const parts = name.trim().split(/\s+/);
+  return ((parts[0]?.[0] || "") + (parts[1]?.[0] || "")).toUpperCase();
+}
+
 const ROLE_COLORS: any = {
   ADMIN: "bg-purple-100 text-purple-700",
   TEAM_LEAD: "bg-blue-100 text-blue-700",
@@ -175,7 +211,7 @@ export default function ProjectDetailClient({
     }
   };
 
-    const handleDeleteProject = async () => {
+  const handleDeleteProject = async () => {
     if (
       !confirm(
         `Delete "${project?.name}"? This removes its tasks, chats, files and members — this cannot be undone.`
@@ -876,7 +912,12 @@ export default function ProjectDetailClient({
               <h2 className="section-title mb-4">Tasks — click one to open it</h2>
               {tasks.length === 0 ? (
                 <div className="card py-12 text-center">
-                  <p className="text-slate-500">No tasks yet.</p>
+                  <p className="text-lg font-medium text-slate-600">
+                    No tasks yet
+                  </p>
+                  <p className="mt-2 text-sm text-slate-400">
+                    Click New Task above to create the first one.
+                  </p>
                 </div>
               ) : (
                 <div className="space-y-4">
@@ -900,7 +941,7 @@ export default function ProjectDetailClient({
                                 PRIORITY_COLORS[task.priority]
                               }`}
                             >
-                              {task.priority}
+                              {PRIORITY_LABELS[task.priority] || task.priority}
                             </span>
                           </div>
                           <p className="mt-1 text-sm text-slate-500">
@@ -912,10 +953,19 @@ export default function ProjectDetailClient({
                                 STATUS_COLORS[task.status]
                               }`}
                             >
-                              {task.status}
+                              {STATUS_LABELS[task.status] || task.status}
                             </span>
                             {task.assignee ? (
-                              <span className="text-slate-600">
+                              <span className="flex items-center gap-2 text-slate-600">
+                                <span
+                                  className={`flex h-6 w-6 items-center justify-center rounded-full text-[10px] font-bold text-white ${avatarColor(
+                                    task.assignee.name || task.assignee.email,
+                                  )}`}
+                                >
+                                  {initialsOf(
+                                    task.assignee.name || task.assignee.email,
+                                  )}
+                                </span>
                                 Assigned to{" "}
                                 <strong>
                                   {task.assignee.name || task.assignee.email}
@@ -989,7 +1039,8 @@ export default function ProjectDetailClient({
                     PRIORITY_COLORS[selectedTask.priority]
                   }`}
                 >
-                  {selectedTask.priority}
+                  {PRIORITY_LABELS[selectedTask.priority] ||
+                    selectedTask.priority}
                 </span>
               </div>
 
@@ -1011,7 +1062,8 @@ export default function ProjectDetailClient({
                         STATUS_COLORS[selectedTask.status]
                       }`}
                     >
-                      {selectedTask.status}
+                      {STATUS_LABELS[selectedTask.status] ||
+                        selectedTask.status}
                     </span>
                     <span className="text-xs text-slate-400">
                       Only the assigned member or an Admin can change the status.
@@ -1020,7 +1072,18 @@ export default function ProjectDetailClient({
                 )}
 
                 {selectedTask.assignee ? (
-                  <span className="text-slate-600">
+                  <span className="flex items-center gap-2 text-slate-600">
+                    <span
+                      className={`flex h-6 w-6 items-center justify-center rounded-full text-[10px] font-bold text-white ${avatarColor(
+                        selectedTask.assignee.name ||
+                          selectedTask.assignee.email,
+                      )}`}
+                    >
+                      {initialsOf(
+                        selectedTask.assignee.name ||
+                          selectedTask.assignee.email,
+                      )}
+                    </span>
                     Assigned to{" "}
                     <strong>
                       {selectedTask.assignee.name || selectedTask.assignee.email}
