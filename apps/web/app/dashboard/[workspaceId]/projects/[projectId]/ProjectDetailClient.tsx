@@ -304,6 +304,20 @@ export default function ProjectDetailClient({
     }
   };
 
+  const updateAssignee = async (taskId: string, newAssigneeId: string) => {
+    const res = await fetch(`${API}/api/projects/${taskId}/assignee`, {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json", ...headers },
+      body: JSON.stringify({ assigneeId: newAssigneeId }),
+    });
+    if (res.ok) {
+      fetchData();
+    } else {
+      const data = await res.json();
+      alert(data.error || "Failed to update assignee");
+    }
+  };
+
   const handleDeleteTask = async (taskId: string) => {
     if (!confirm("Are you sure you want to delete this task?")) return;
     const res = await fetch(`${API}/api/projects/${taskId}`, {
@@ -829,11 +843,13 @@ export default function ProjectDetailClient({
                         className="input"
                       >
                         <option value="">No assignee</option>
-                        {projMembers.map((pm: any) => (
-                          <option key={pm.user.id} value={pm.user.id}>
-                            {pm.user.name || pm.user.email}
-                          </option>
-                        ))}
+                        {projMembers
+                          .filter((pm: any) => pm.user.id !== currentUserId)
+                          .map((pm: any) => (
+                            <option key={pm.user.id} value={pm.user.id}>
+                              {pm.user.name || pm.user.email}
+                            </option>
+                          ))}
                       </select>
                       <div className="sm:col-span-2">
                         <button type="submit" className="btn-primary">
@@ -894,7 +910,38 @@ export default function ProjectDetailClient({
                             >
                               {task.status}
                             </span>
-                            {task.assignee ? (
+                            {canManageTasks ? (
+                              <span
+                                onClick={(e) => e.stopPropagation()}
+                                className="inline-flex items-center gap-1 text-sm"
+                              >
+                                <span className="text-slate-500">
+                                  Assign to:
+                                </span>
+                                <select
+                                  value={task.assigneeId || ""}
+                                  onChange={(e) =>
+                                    updateAssignee(task.id, e.target.value)
+                                  }
+                                  className="rounded-lg border border-slate-300 bg-white px-2 py-1 text-sm focus:border-indigo-500 focus:outline-none"
+                                >
+                                  <option value="">Unassigned</option>
+                                  {projMembers
+                                    .filter(
+                                      (pm: any) =>
+                                        pm.user.id !== currentUserId,
+                                    )
+                                    .map((pm: any) => (
+                                      <option
+                                        key={pm.user.id}
+                                        value={pm.user.id}
+                                      >
+                                        {pm.user.name || pm.user.email}
+                                      </option>
+                                    ))}
+                                </select>
+                              </span>
+                            ) : task.assignee ? (
                               <span className="text-slate-600">
                                 Assigned to{" "}
                                 <strong>
@@ -999,7 +1046,27 @@ export default function ProjectDetailClient({
                   </>
                 )}
 
-                {selectedTask.assignee ? (
+                {canManageTasks ? (
+                  <span className="inline-flex items-center gap-1 text-sm">
+                    <span className="text-slate-500">Assign to:</span>
+                    <select
+                      value={selectedTask.assigneeId || ""}
+                      onChange={(e) =>
+                        updateAssignee(selectedTask.id, e.target.value)
+                      }
+                      className="rounded-lg border border-slate-300 bg-white px-2 py-1.5 text-sm focus:border-indigo-500 focus:outline-none"
+                    >
+                      <option value="">Unassigned</option>
+                      {projMembers
+                        .filter((pm: any) => pm.user.id !== currentUserId)
+                        .map((pm: any) => (
+                          <option key={pm.user.id} value={pm.user.id}>
+                            {pm.user.name || pm.user.email}
+                          </option>
+                        ))}
+                    </select>
+                  </span>
+                ) : selectedTask.assignee ? (
                   <span className="text-slate-600">
                     Assigned to{" "}
                     <strong>
