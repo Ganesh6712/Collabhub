@@ -5,7 +5,7 @@ import { signOut } from "next-auth/react";
 export default function LogoutButton() {
   return (
     <button
-      onClick={() => signOut({ callbackUrl: "/login" })}
+      onClick={() => signOut({ callbackUrl: "/" })}
       className="flex items-center gap-2 rounded-full bg-red-500 px-5 py-2.5 text-sm font-bold text-white shadow-md transition hover:bg-red-600 active:scale-95"
       title="Sign out of CollabHub"
     >

@@ -68,7 +68,25 @@ export default function RegisterPage() {
   };
 
   return (
-    <div className="flex min-h-screen items-center justify-center bg-gradient-to-br from-slate-50 to-indigo-50 px-4 py-12">
+    <div className="relative flex min-h-screen items-center justify-center bg-gradient-to-br from-slate-50 to-indigo-50 px-4 py-12">
+      <Link
+        href="/"
+        className="absolute left-6 top-6 flex items-center gap-1.5 text-sm font-medium text-slate-500 transition hover:text-indigo-600"
+      >
+        <svg
+          className="h-4 w-4"
+          fill="none"
+          stroke="currentColor"
+          strokeWidth="2"
+          strokeLinecap="round"
+          strokeLinejoin="round"
+          viewBox="0 0 24 24"
+        >
+          <path d="m12 19-7-7 7-7" />
+          <path d="M5 12h14" />
+        </svg>
+        Back to home
+      </Link>
       <div className="w-full max-w-5xl overflow-hidden rounded-3xl bg-white shadow-2xl ring-1 ring-slate-900/5 lg:grid lg:grid-cols-2">
         {/* Left side - branding */}
         <div className="relative hidden flex-col justify-between overflow-hidden bg-indigo-600 p-12 text-white lg:flex">
