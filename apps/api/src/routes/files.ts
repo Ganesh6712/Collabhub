@@ -1,29 +1,15 @@
 import { Router } from "express";
 import multer from "multer";
-import path from "path";
-import fs from "fs";
-import { v4 as uuidv4 } from "uuid";
 import { prisma } from "../lib/prisma";
 import { authenticateToken } from "../middleware/auth";
 import { emitToWorkspace } from "../lib/io";
+import { uploadBufferToCloudinary } from "../lib/cloudinary";
 
-const uploadDir = path.resolve("uploads");
-if (!fs.existsSync(uploadDir)) {
-  fs.mkdirSync(uploadDir, { recursive: true });
-}
-
-const storage = multer.diskStorage({
-  destination: (_req, _file, cb) => {
-    cb(null, uploadDir);
-  },
-  filename: (_req, file, cb) => {
-    const uniqueName = `${uuidv4()}${path.extname(file.originalname)}`;
-    cb(null, uniqueName);
-  },
-});
-
+// Files never touch the server disk — they stream straight to Cloudinary.
+// (Render's free-tier disk is wiped on every deploy, so disk storage
+// would lose the files.)
 const upload = multer({
-  storage,
+  storage: multer.memoryStorage(),
   limits: { fileSize: 10 * 1024 * 1024 },
 });
 
@@ -76,48 +62,66 @@ router.get("/:workspaceId/files", async (req: any, res: any) => {
 });
 
 // POST /api/workspaces/:workspaceId/files
-router.post("/:workspaceId/files", upload.single("file"), async (req: any, res: any) => {
-  const userId = req.user.id;
-  const { workspaceId } = req.params;
+router.post(
+  "/:workspaceId/files",
+  upload.single("file"),
+  async (req: any, res: any) => {
+    const userId = req.user.id;
+    const { workspaceId } = req.params;
 
-  if (!req.file) return res.status(400).json({ error: "No file uploaded" });
+    if (!req.file) return res.status(400).json({ error: "No file uploaded" });
 
-  const membership = await (prisma as any).membership.findFirst({
-    where: { userId, workspaceId },
-  });
-  if (!membership) {
-    fs.unlinkSync(req.file.path);
-    return res.status(403).json({ error: "Access denied" });
-  }
-
-  let taskId: string | null = req.body?.taskId || null;
-  if (taskId) {
-    const task = await (prisma as any).task.findFirst({
-      where: { id: taskId, project: { workspaceId } },
+    const membership = await (prisma as any).membership.findFirst({
+      where: { userId, workspaceId },
     });
-    if (!task) taskId = null;
-  }
+    if (!membership) {
+      return res.status(403).json({ error: "Access denied" });
+    }
 
-  const attachment = await (prisma as any).attachment.create({
-    data: {
-      filename: req.file.filename,
-      originalName: req.file.originalname,
-      mimeType: req.file.mimetype,
-      size: req.file.size,
-      url: `${process.env.API_BASE_URL || "http://localhost:4000"}/uploads/${req.file.filename}`,
-      workspaceId,
-      uploadedById: userId,
-      taskId,
-    },
-    include: { uploadedBy: { select: { id: true, name: true, email: true } } },
-  });
+    // optional: attach the file to a task instead of the project in general
+    let taskId: string | null = req.body?.taskId || null;
+    if (taskId) {
+      const task = await (prisma as any).task.findFirst({
+        where: { id: taskId, project: { workspaceId } },
+      });
+      if (!task) taskId = null;
+    }
 
-  // tell every open page in this workspace to refresh its file list
-  // (no file content in the event — each page re-fetches only what it
-  // is allowed to see, so the privacy rules stay intact)
-  emitToWorkspace(workspaceId, "new_file", { taskId });
+    try {
+      const uploaded = await uploadBufferToCloudinary(
+        req.file.buffer,
+        req.file.originalname,
+        `collabhub/${workspaceId}`,
+        req.file.mimetype,
+      );
 
-  res.status(201).json({ attachment });
-});
+      const attachment = await (prisma as any).attachment.create({
+        data: {
+          filename: uploaded.publicId,
+          originalName: req.file.originalname,
+          mimeType: req.file.mimetype,
+          size: req.file.size,
+          url: uploaded.url,
+          workspaceId,
+          uploadedById: userId,
+          taskId,
+        },
+        include: {
+          uploadedBy: { select: { id: true, name: true, email: true } },
+        },
+      });
+
+      // tell every open page in this workspace to refresh its file list
+      // (no file content in the event — each page re-fetches only what it
+      // is allowed to see, so the privacy rules stay intact)
+      emitToWorkspace(workspaceId, "new_file", { taskId });
+
+      res.status(201).json({ attachment });
+    } catch (err: any) {
+      console.error("Cloudinary upload error:", err);
+      res.status(500).json({ error: "File upload failed" });
+    }
+  },
+);
 
 export default router;

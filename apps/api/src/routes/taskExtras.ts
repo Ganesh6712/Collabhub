@@ -1,25 +1,15 @@
 import { Router } from "express";
 import multer from "multer";
-import path from "path";
-import fs from "fs";
-import { v4 as uuidv4 } from "uuid";
 import { prisma } from "../lib/prisma";
 import { authenticateToken } from "../middleware/auth";
 import { emitToWorkspace } from "../lib/io";
+import { uploadBufferToCloudinary } from "../lib/cloudinary";
 
-const uploadDir = path.resolve("uploads");
-if (!fs.existsSync(uploadDir)) {
-  fs.mkdirSync(uploadDir, { recursive: true });
-}
-
-const storage = multer.diskStorage({
-  destination: (_req: any, _file: any, cb: any) => cb(null, uploadDir),
-  filename: (_req: any, file: any, cb: any) =>
-    cb(null, `${uuidv4()}${path.extname(file.originalname)}`),
-});
-
+// Files never touch the server disk — they stream straight to Cloudinary.
+// (Render's free-tier disk is wiped on every deploy, so disk storage
+// would lose the files.)
 const upload = multer({
-  storage,
+  storage: multer.memoryStorage(),
   limits: { fileSize: 10 * 1024 * 1024 },
 });
 
@@ -88,32 +78,43 @@ router.post(
 
     const ctx = await taskAccess(taskId, userId);
     if (!ctx) {
-      fs.unlinkSync(req.file.path);
       return res.status(403).json({ error: "Access denied" });
     }
 
-    const attachment = await (prisma as any).attachment.create({
-      data: {
-        filename: req.file.filename,
-        originalName: req.file.originalname,
-        mimeType: req.file.mimetype,
-        size: req.file.size,
-        url: `${process.env.API_BASE_URL || "http://localhost:4000"}/uploads/${req.file.filename}`,
-        workspaceId: ctx.task.project.workspaceId,
-        uploadedById: userId,
-        taskId,
-      },
-      include: {
-        uploadedBy: { select: { id: true, name: true, email: true } },
-      },
-    });
+    try {
+      const uploaded = await uploadBufferToCloudinary(
+        req.file.buffer,
+        req.file.originalname,
+        `collabhub/${ctx.task.project.workspaceId}`,
+        req.file.mimetype,
+      );
 
-    // tell every open page in this workspace to refresh its file list
-    // (no file content in the event — each page re-fetches only what it
-    // is allowed to see, so the privacy rules stay intact)
-    emitToWorkspace(ctx.task.project.workspaceId, "new_file", { taskId });
+      const attachment = await (prisma as any).attachment.create({
+        data: {
+          filename: uploaded.publicId,
+          originalName: req.file.originalname,
+          mimeType: req.file.mimetype,
+          size: req.file.size,
+          url: uploaded.url,
+          workspaceId: ctx.task.project.workspaceId,
+          uploadedById: userId,
+          taskId,
+        },
+        include: {
+          uploadedBy: { select: { id: true, name: true, email: true } },
+        },
+      });
 
-    res.status(201).json({ attachment });
+      // tell every open page in this workspace to refresh its file list
+      // (no file content in the event — each page re-fetches only what it
+      // is allowed to see, so the privacy rules stay intact)
+      emitToWorkspace(ctx.task.project.workspaceId, "new_file", { taskId });
+
+      res.status(201).json({ attachment });
+    } catch (err: any) {
+      console.error("Cloudinary upload error:", err);
+      res.status(500).json({ error: "File upload failed" });
+    }
   },
 );
 
