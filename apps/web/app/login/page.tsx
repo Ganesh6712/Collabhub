@@ -1,7 +1,7 @@
 "use client";
 
-import { signIn } from "next-auth/react";
-import { useState } from "react";
+import { signIn, signOut, useSession } from "next-auth/react";
+import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
 
@@ -12,6 +12,17 @@ export default function LoginPage() {
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
   const router = useRouter();
+  const { status } = useSession();
+
+  // The login page always means "logged out". If someone lands here
+  // while still signed in (e.g. the browser BACK button after login),
+  // silently sign them out — the only way back into the app is
+  // pressing Sign In with the credentials.
+  useEffect(() => {
+    if (status === "authenticated") {
+      signOut({ redirect: false });
+    }
+  }, [status]);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();

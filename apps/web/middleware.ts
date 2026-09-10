@@ -1,22 +1,25 @@
 import { NextResponse } from "next/server";
 import type { NextRequest } from "next/server";
 
-// Protects every /dashboard page at the SERVER level:
+// Protects the app at the SERVER level:
 //
-// 1. No session cookie -> immediate redirect to /login.
-//    (covers refresh, direct URLs, and back-button navigations
-//    that trigger a page load)
+// 1. /dashboard/* is for signed-in users only — no session cookie
+//    means an immediate redirect to /login (covers refresh, direct
+//    URLs, and back/forward navigations that trigger a page load).
 //
-// 2. Marks dashboard responses "no-store" so browsers never cache
-//    them and never restore them from the back/forward cache.
-//    That cache is what made the browser BACK button show the
-//    logged-in pages after logout.
+// 2. Dashboard AND login responses are marked "no-store" so the
+//    browser never caches them and never restores them from the
+//    back/forward cache. That cache is what made the BACK button
+//    show the logged-in pages after logout, and the FORWARD button
+//    re-enter the app after landing back on the login page.
 export function middleware(req: NextRequest) {
   const token =
     req.cookies.get("next-auth.session-token")?.value ||
     req.cookies.get("__Secure-next-auth.session-token")?.value;
 
-  if (!token) {
+  const { pathname } = req.nextUrl;
+
+  if (pathname.startsWith("/dashboard") && !token) {
     const url = req.nextUrl.clone();
     url.pathname = "/login";
     url.search = "";
@@ -29,5 +32,5 @@ export function middleware(req: NextRequest) {
 }
 
 export const config = {
-  matcher: ["/dashboard/:path*"],
+  matcher: ["/dashboard/:path*", "/login"],
 };

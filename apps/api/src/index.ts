@@ -4,6 +4,7 @@ import cors from "cors";
 import dotenv from "dotenv";
 import helmet from "helmet";
 import morgan from "morgan";
+import { rateLimit } from "express-rate-limit";
 import { createServer } from "http";
 import { Server } from "socket.io";
 import jwt from "jsonwebtoken";
@@ -26,9 +27,21 @@ dotenv.config();
 
 const app = express();
 const server = createServer(app);
+
+// Security: only our own frontend (plus localhost for development) may
+// call this API or open sockets. Override with the ALLOWED_ORIGINS env
+// var (comma-separated list) if the frontend URL ever changes.
+const ALLOWED_ORIGINS = (
+  process.env.ALLOWED_ORIGINS ||
+  "https://collabhub-web.vercel.app,http://localhost:3000"
+)
+  .split(",")
+  .map((o) => o.trim())
+  .filter(Boolean);
+
 const io = new Server(server, {
   cors: {
-    origin: "*",
+    origin: ALLOWED_ORIGINS,
   },
 });
 
@@ -38,10 +51,24 @@ setIo(io);
 const PORT = process.env.PORT || 4000;
 const JWT_SECRET = process.env.JWT_SECRET as string;
 
+// Render runs behind a proxy — trust it so rate limiting sees real IPs
+app.set("trust proxy", 1);
 app.use(helmet());
-app.use(cors());
+app.use(cors({ origin: ALLOWED_ORIGINS }));
 app.use(express.json());
 app.use(morgan("dev"));
+
+// Brute-force protection: max 30 login/register attempts per IP per
+// 15 minutes. Normal use (even heavy demo testing) never hits this.
+const authLimiter = rateLimit({
+  windowMs: 15 * 60 * 1000,
+  max: 30,
+  standardHeaders: true,
+  legacyHeaders: false,
+  message: { error: "Too many attempts. Please try again in 15 minutes." },
+});
+app.use("/api/auth", authLimiter);
+
 app.use("/api/workspaces", fileRoutes);
 app.use("/api/users", userRoutes);
 app.use("/api/admin", adminMemberRoutes);
@@ -107,12 +134,45 @@ io.use((socket, next) => {
 io.on("connection", (socket) => {
   console.log("⚡ Socket connected:", socket.data.user.email);
 
-  socket.on("join_workspace", (workspaceId) => {
+  // Security: verify the user is really a member of this workspace
+  // BEFORE letting them join its room (otherwise anyone logged in
+  // could listen to another workspace's chat).
+  socket.on("join_workspace", async (workspaceId) => {
+    const userId = socket.data.user.id;
+
+    const membership = await (prisma as any).membership.findFirst({
+      where: { userId, workspaceId },
+    });
+    if (!membership) return; // not a member — silently refuse
+
     socket.join(`workspace:${workspaceId}`);
     console.log(`User joined workspace:${workspaceId}`);
   });
 
-  socket.on("join_task", (taskId) => {
+  // Security: verify the user may see this task (ADMIN, or a member of
+  // the task's project) BEFORE letting them join the task room.
+  socket.on("join_task", async (taskId) => {
+    const userId = socket.data.user.id;
+
+    // (prisma as any) — same style as the rest of the codebase; avoids
+    // type-inference issues with the nested filtered include below
+    const task = await (prisma as any).task.findUnique({
+      where: { id: taskId },
+      include: {
+        project: {
+          include: {
+            workspace: { include: { memberships: { where: { userId } } } },
+            members: { where: { userId } },
+          },
+        },
+      },
+    });
+    if (!task) return;
+
+    const wsRole = task.project.workspace.memberships[0]?.role;
+    const isProjectMember = task.project.members.length > 0;
+    if (wsRole !== "ADMIN" && !isProjectMember) return; // no access
+
     socket.join(`task:${taskId}`);
   });
 
