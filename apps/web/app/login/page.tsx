@@ -1,7 +1,7 @@
 "use client";
 
 import { signIn, signOut, useSession } from "next-auth/react";
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
 
@@ -14,12 +14,18 @@ export default function LoginPage() {
   const router = useRouter();
   const { status } = useSession();
 
-  // The login page always means "logged out". If someone lands here
+  // true from the moment the user presses Sign In — stops the
+  // auto-signout below from killing the brand-new session while the
+  // login page is still on screen for a moment.
+  const justSignedIn = useRef(false);
+
+  // The login page always means "logged out". If someone ARRIVES here
   // while still signed in (e.g. the browser BACK button after login),
   // silently sign them out — the only way back into the app is
-  // pressing Sign In with the credentials.
+  // pressing Sign In with the credentials. Skipped right after a
+  // successful Sign In on this page (that is the fresh session!).
   useEffect(() => {
-    if (status === "authenticated") {
+    if (status === "authenticated" && !justSignedIn.current) {
       signOut({ redirect: false });
     }
   }, [status]);
@@ -28,6 +34,7 @@ export default function LoginPage() {
     e.preventDefault();
     setError("");
     setLoading(true);
+    justSignedIn.current = true;
 
     const res = await signIn("credentials", {
       email,
@@ -38,6 +45,7 @@ export default function LoginPage() {
     setLoading(false);
 
     if (res?.error) {
+      justSignedIn.current = false;
       setError("Invalid email or password");
     } else {
       router.push("/dashboard");
